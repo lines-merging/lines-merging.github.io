@@ -1,0 +1,647 @@
+<!--
+  Copyright 2018 The Distill Template Authors
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+
+<head>
+    <meta name="viewport" content="width=1200, initial-scale=1.0, user-scalable=yes" />
+
+    <!-- Primary Meta Tags -->
+    <title>LiNeS</title>
+    <meta name="title" content="LiNeS">
+    <meta name="description"
+        content="We propose a simple algorithm that scales linearly the parameters of the task vector as a function of depth and show that it is effective in many different settings.">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lines-merging.github.io/">
+    <meta property="og:title" content="LiNeS">
+    <meta property="og:description"
+        content="We propose a simple algorithm that scales linearly the parameters of the task vector as a function of depth and show that it is effective in many different settings">
+    <meta property="og:image" content="https://lines-merging.github.io/thumbnail.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://lines-merging.github.io/">
+    <meta property="twitter:title" content="LiNeS">
+    <meta property="twitter:description"
+        content="We propose a simple algorithm that scales linearly the parameters of the task vector as a function of depth and show that it is effective in many different settings">
+    <meta property="twitter:image" content="https://lines-merging.github.io/thumbnail.png">
+
+    <script src="https://distill.pub/template.v2.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+    <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="assets/colorlegend.js"></script>
+    <script src="assets/decorate_select_network.js"></script>
+    <script type="text/javascript">
+        window.MathJax = {
+            loader: { load: ['[tex]/boldsymbol'] },
+            tex: { packages: { '[+]': ['boldsymbol'] } }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+        </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        MathJax.startup.promise.then(() => {
+            MathJax.Hub.Config({
+                tex: {
+                    extensions: ["autoload"],
+                    autoLoad: {
+                        autoload: true
+                    }
+                }
+            });
+        });
+    </script>
+    <meta charset="utf8" />
+
+    <style>
+        p {
+            text-align: justify;
+            text-justify: inter-word;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- <distill-header></distill-header> -->
+    <d-front-matter>
+        <script id="distill-front-matter" type="text/json">
+            {
+                "title": "LiNeS: Post-training Layer Scaling Prevents Forgetting and Enhances Model Merging",
+                "description": "The architecture of a neural network defines a set of directions that can be used to classify a distribution.",
+                "published": "October 12, 2024",
+                "authors": [
+                {
+                    "author": "Ke Wang",
+                    "authorURL": "https://wang-kee.github.io/",
+                    "affiliations": [{ "name": "EPFL" }]
+                },
+                {
+                    "author": "Nikolaos Dimitriadis",
+                    "authorURL": "https://nik-dim.github.io/",
+                    "affiliations": [{ "name": "EPFL" }]
+                },
+                {
+                    "author": "Alessandro Favero",
+                    "authorURL": "https://alesfav.github.io/",
+                    "affiliations": [{ "name": "EPFL" }]
+                },
+                {
+                    "author": "Guillermo Ortiz-Jimenez",
+                    "authorURL": "https://gortizji.github.io/",
+                    "affiliations": [{ "name": "Google Deepmind" }]
+                },
+                {
+                    "author": "François Fleuret",
+                    "authorURL": "https://fleuret.org/francois/",
+                    "affiliations": [{ "name": "University of Geneva" }]
+                },
+                {
+                    "author": "Pascal Frossard",
+                    "authorURL": "https://scholar.google.ch/citations?user=-Ve9sJ0AAAAJ",
+                    "affiliations": [{ "name": "EPFL" }]
+                }
+            ],
+                "Original article": "https://arxiv.org/abs/2006.09717",
+                "katex": {
+                    "delimiters": [
+                        { "left": "$$", "right": "$$", "display": false }
+                    ]
+                }
+            }
+        </script>
+    </d-front-matter>
+
+
+    <!-- <d-title>
+        <div class="l-body" style="position: relative; ">
+            <img src="images/lines/splash.png" , style="width: 700px;">
+        </div>
+    </d-title> -->
+
+    <d-byline></d-byline>
+    <d-article>
+        <ul>
+            <li>Paper: <a href="https://arxiv.org/abs/2410.17146">arxiv.org/abs/2410.17146</a></li>
+            <li>PDF: <a href="https://arxiv.org/pdf/2410.17146">arxiv.org/pdf/2410.17146</a></li>
+            <li>Code: <a href="https://github.com/wang-kee/LiNeS">github.com/wang-kee/LiNeS</a></li>
+        </ul>
+        <!-- <h2>Tl;DR</h2> -->
+        <!-- <p>
+            Pre-trained models are great at handling a wide range of tasks, but fine-tuning them on one task can cause
+            them to forget what they learned before—a problem called <strong>catastrophic forgetting</strong>. We introduce LiNeS
+            (<strong>L</strong>ayer-<strong>I</strong>ncreasing <strong>Ne</strong>twork <strong>S</strong>caling) to tackle this issue. LiNeS works by scaling updates differently across
+            the layers of a model: shallow layers keep general knowledge, while deeper layers adapt to the new task.
+            This helps models retain their generalization ability even after fine-tuning.
+        </p>
+        <strong></strong>
+        <p>
+            We also apply LiNeS to multi-task scenarios, where it reduces interference between tasks when merging models
+            trained for different objectives. LiNeS boosts performance across vision and language tasks, helps models
+            handle out-of-distribution data better, and improves merging of language models fine-tuned on different
+            rewards. Plus, it's easy to implement and works well with existing methods.
+        </p> -->
+
+        <p>
+            Pre-trained models excel at many tasks, but <strong>fine-tuning</strong> can lead to <strong>catastrophic forgetting</strong>,
+            where gains on one task cause a loss in generalization. We introduce LiNeS
+            (<strong>L</strong>ayer-<strong>I</strong>ncreasing <strong>Ne</strong>twork <strong>S</strong>caling), a post-fine-tuning method that preserves general knowledge in shallow layers while
+            allowing deeper layers to specialize. This helps models retain both task-specific improvements and their ability to generalize.
+        </p>
+        <strong></strong>
+        <p>
+            LiNeS also shines in <strong>multi-task model merging</strong>, reducing interference between tasks and boosting performance across both vision
+            and language benchmarks. It enhances models in <strong>out-of-distribution scenarios</strong> and improves the merging of language models fine-tuned
+            with <strong>different reward signals</strong>. LiNeS is simple to implement and integrates seamlessly with existing methods.
+        </p>
+        
+
+        <h2>Post-training Layer-wise Scaling Mitigates Forgetting</h2>
+
+        <p>The key insight behind our method is that <strong>scaling down the updates to shallow layers after
+                fine-tuning</strong> can help mitigate catastrophic forgetting. This way, the model preserves its
+            ability to generalize while still performing well on the specific task it was fine-tuned for. Let's walk
+            through how this works.</p>
+
+
+        <h3>Fine-tuning and Forgetting</h3>
+
+
+        <p>First, we demonstrate the problem of <strong>catastrophic forgetting</strong>. Using the CLIP
+            ViT-B/32 model, we fine-tuned it on an 8-task image classification benchmark. We measured
+            the
+            model's performance on both the target task (the one we fine-tuned on) and the remaining 7 control tasks. As we see on the right, fine-tuning boosts
+            performance on the target task but causes a steep drop in accuracy on the control tasks. This shows how
+            much
+            generalization is lost after fine-tuning.</p>
+
+        <div class="l-page side">
+            <img src="images/lines/Table1.png" , style="width: 200%;">
+        </div>
+
+        <h3>Shallow Layers vs. Deeper Layers</h3>
+        <p>Most of the updates that happen during fine-tuning are actually unnecessary for maintaining target task
+            accuracy. Prior work shows that the deeper layers are more important for task-specific features, while
+            shallow layers hold general features. Based on this, we hypothesized that <strong>scaling down the updates
+                to shallow layers</strong> after fine-tuning could preserve generalization without sacrificing target
+            task performance.</p>
+
+        <p>In our experiment, we applied a <em>linearly increasing</em> scaling schedule that reduces updates to shallow layers while
+            leaving deeper layers more or less unchanged. Specifically, layer <d-math>\ell</d-math> is multiplied by a scaling factor:
+            <!-- <d-math block=""> -->
+            $$
+            \lambda^{(\ell)}= \gamma + (1-\gamma) \frac{\ell-1}{L-1}, \quad \forall \ell \in[L].
+            <!-- </d-math> -->
+            $$
+        </p>
+
+        <p>
+            As shown in below, even with aggressive
+            downscaling of shallow layers, the target task accuracy stayed nearly the same. However, when we downscaled
+            the deeper layers, performance dropped sharply. This supports our idea that shallow-layer updates don't
+            contribute much to the target task's success.
+        </p>
+
+        <div class="l-page" style="display: inline-flex;">
+            <img src="images/lines/downscale_id_ood.png" , style="width: 100%;">
+        </div>
+
+        <h3>Shallow-layer Updates Hurt Generalization</h3>
+        <p>While shallow-layer updates have a minimal impact on the target task, they do impact the model's generalization
+            ability. These layers hold general features learned during pre-training, and updating them during
+            fine-tuning can distort these features. By downscaling the updates to the shallow layers, we found that we
+            could restore much of the <strong>zero-shot generalization</strong> lost during fine-tuning, as seen in the
+            right side of the figure above. The control tasks' accuracy almost returned to the level of the
+            pre-trained model.</p>
+
+
+
+        <h3>Striking the Right Balance</h3>
+        <div style="width: 900px; height: 350px; position: relative;">
+            <p style="width: 420px; position: absolute;">
+                To strike the best balance between <strong>target task accuracy</strong> and <strong>generalization on
+                    control tasks</strong>, we optimized the scaling coefficient for each model. As we saw on the first
+                table, our method leads to minimal loss in target task accuracy (only a 0.2% drop) but restores
+                a full 10% improvement in control task performance. We also applied this approach to a larger 20-task
+                benchmark, and the results, illustrated in the figure on the right, show that LiNeS maintains strong
+                target task accuracy (99.8%) while also significantly improving control task generalization (97.9%).
+            </p>
+            <d-figure style="width: 400px; left: 470px; position: absolute;">
+                <img src="images/lines/norm_acc_20tasks.png" alt="nads_examples" style="width: 350px;">
+                <figcaption>
+                    LiNeS mitigates forgetting while preserving target task performance.
+                </figcaption>
+            </d-figure>
+        </div>
+        <p>By carefully downscaling shallow layers, we're able to prevent catastrophic forgetting and preserve the
+            generalization powers of pre-trained models while fine-tuning them for specific tasks.</p>
+
+
+        <h2>Method</h2>
+
+        <p>All these insights led us to a pretty straightforward solution: <strong>LiNeS</strong> (Layer-Increasing
+            Network Scaling). The idea is simple—different layers in the model need different amounts of fine-tuning.
+            Shallow layers should stay close to their original pre-trained state since they hold general knowledge,
+            while deeper layers can be adapted more to the specific task.</p>
+
+
+        <p>So how do we do this? We scale the updates differently for each layer based on how deep it is. We keep
+            shallow layers mostly unchanged, but let deeper layers adapt more. This way, we can fine-tune the model
+            without it forgetting everything it learned before.</p>
+
+        <p>Here's how it works in a nutshell:
+            <!-- <d-math block=""> -->
+            $$
+            \boldsymbol{\tau}_{\textrm{LiNeS}} = \texttt{concat}(\lambda^{(1)} {\boldsymbol{\tau}}^{(1)}, ...,
+            \lambda^{(L)} \boldsymbol{\tau}^{(L)} ), \text{ where }
+            \lambda^{(\ell)} = \alpha +
+            \beta \frac{\ell-1}{L-1} , \quad \forall \ell \in [L]
+            <!-- </d-math> -->
+            $$
+        </p>
+
+        <p>This formula adjusts the updates from shallow layers (small scaling with <d-math>\alpha</d-math>) to deep
+            layers (larger scaling
+            with <d-math>\alpha+\beta</d-math> ). In simple terms, the deeper the layer, the more it's fine-tuned.
+            Shallow layers? Barely
+            touched.</p>
+
+        <p>To give some examples:
+        <ul>
+            <li>Setting <d-math>\alpha=\beta=0</d-math> results in the original pre-trained model.</li>
+            <li>Setting <d-math>\alpha=1, \beta=0</d-math> results in the fully fine-tuned the model without any scaling.</li>
+        </ul>
+        </p>
+
+        <p>
+            In our experiments we only adjust one of the hyperparameters and use heuristics to set the other. LiNeS
+            isflexible and easy to tune for different needs, whether you're working with a single task or merging models
+            across multiple tasks.
+
+        </p>
+
+        <p>We'll dive into more detail on how we tuned these parameters in our experiments, but the core idea remains
+            simple: adjust the fine-tuning for each layer based on how deep it is, and you get the best of both
+            worlds—great performance on the task at hand, without sacrificing generalization.</p>
+
+
+        <h2>Experiments</h2>
+
+        <h3>Improving Robust Fine-tuning for OOD Generalization</h3>
+
+
+        <p>We next evaluated the effectiveness of <strong>LiNeS</strong> in the context of <strong>Out-of-Distribution
+                (OOD) generalization</strong>, where models encounter data that significantly differs from their
+            training set. A widely used method for this scenario is <strong>WiSE-FT</strong> (Weight Interpolation for
+            Stronger Fine-tuning) <d-cite key="wortsman2021robust"></d-cite>, which interpolates between pre-trained and
+            fine-tuned model weights to enhance
+            performance on OOD datasets. The interpolation can be formulated as a combination of the pre-trained weights
+            (<d-math> \theta_0 </d-math>) and the fine-tuned updates (<d-math> \tau </d-math>), controlled by a
+            parameter <d-math> \gamma </d-math>, as follows: <d-math> (1 - \gamma) \theta_0 + \gamma \theta = \theta_0 +
+                \gamma \tau </d-math>. This method allows the model to retain its pre-trained knowledge while benefiting
+            from task-specific fine-tuning.</p>
+
+        <p>To assess the impact of LiNeS, we applied it to this interpolation process using CLIP models fine-tuned on
+            <strong>ImageNet</strong>. We evaluated performance across five OOD datasets:
+            <strong>ImageNetSketch</strong>, <strong>ImageNet-A</strong>, <strong>ImageNet-R</strong>,
+            <strong>ObjectNet</strong>, and <strong>ImageNet-V2</strong>. We experimented with 70 fine-tuned
+            checkpoints, applying LiNeS with <d-math> \alpha = \beta = 0.5 </d-math>. Even
+            without applying WiSE-FT, LiNeS substantially improved both in-distribution (ID) and OOD performance. When
+            LiNeS was combined with WiSE-FT, the performance gains were even more pronounced. As we see below, the
+            resulting Pareto Front consistently dominated that of WiSE-FT across all distribution
+            shifts, demonstrating the robustness of LiNeS under various conditions.
+            Overall, LiNeS complements WiSE-FT by providing a scalable and
+            efficient method for robust fine-tuning in diverse environments.
+        </p>
+
+        <div class="l-page" style="display: inline-flex;">
+            <img src="images/lines/interpolate_all5.png" , style="width: 100%;">
+        </div>
+
+
+
+
+
+        <h3>Improving Multi-task Model Merging</h3>
+
+        <p>We can also extend <strong>LiNeS</strong> to enhance multi-task model merging algorithms, allowing
+            for the integration of multiple models fine-tuned on different tasks into a single robust model. The
+            intuition behind this approach is to mitigate task interference, which often occurs when merging individual
+            task vectors—this interference can degrade overall performance due to the conflicting contributions of
+            different tasks.</p>
+
+        <p>To evaluate the effectiveness of our method, we apply <strong>LiNeS</strong> to various merging techniques,
+            including Task Arithmetic <d-cite key="ilharco2023task"></d-cite>, Ties-Merging <d-cite
+                key="yadav2023ties"></d-cite>, and Consensus Merging <d-cite key="wang2024localizing"></d-cite>,
+            across several benchmarks in both computer vision and natural language processing.
+        </p>
+
+
+        <h4>Computer Vision</h4>
+        <!-- <h3>Computer Vision</h3> -->
+        <p>We conducted experiments using the 8-task, 14-task, and 20-task benchmarks to assess the performance of our
+            method. As shown in below, <strong>LiNeS</strong> significantly boosts performance across
+            all merging strategies and model sizes.
+        </p>
+
+        <div class="l-page" style="display: inline-flex;">
+            <img src="images/lines/table2.png" , style="width: 100%;">
+        </div>
+        <p></p>
+        <p></p>
+
+        <!-- <h3>Natural Language Processing</h3> -->
+        <h4>Natural Language Processing</h4>
+        <p>We also evaluated <strong>LiNeS</strong> in the NLP domain, focusing on various benchmarks, including 7-task NLP
+            and 8-task Question-Answering tasks, as well as their 11-task union. Our results indicate that <strong>LiNeS</strong> enhances multi-task
+            performance across all tested baseline methods, affirming its versatility and robustness in both computer
+            vision and NLP applications.
+        </p>
+
+
+
+
+        <div class="l-body" style="display: inline-flex;">
+            <img src="images/lines/table3.png" , style="width: 100%;">
+        </div>
+
+
+
+        <h3>Improving Model Soups for Merging Single-task Models</h3>
+
+
+        <p>Averaging multiple models fine-tuned on the same task can enhance performance, as demonstrated in the Model
+            Soups framework <d-cite key="wortsman2022model"></d-cite>. We investigate whether <strong>LiNeS</strong> can
+            further improve
+            test performance when merging single-task models. Merging 70 CLIP ViT-B/32 checkpoints fine-tuned on
+            ImageNet, we apply <strong>LiNeS</strong> to the weight averaging process, tuning the parameter <d-math>
+                \beta</d-math> while fixing <d-math> \alpha = 1 </d-math>. Our results on the right show that
+            <strong>LiNeS</strong> outperforms both vanilla soups and task arithmetic,
+            achieving improvements of 0.48% and 0.15% on ImageNet for uniform and greedy soup methods, respectively.
+            These findings demonstrate that <strong>LiNeS</strong> effectively enhances the merging of single-task
+            models, yielding the best-performing configurations by leveraging the gains from greedy soup. This
+            reinforces the utility of <strong>LiNeS</strong> in optimizing model performance across various merging
+            strategies.
+        </p>
+
+        <div class="l-body side">
+            <img src="images/lines/table4.png" , style="width: 300%;">
+        </div>
+
+
+
+        <h3>Improving Rewarded Soups</h3>
+
+        <p>We investigate the effectiveness of <strong>LiNeS</strong> for merging foundation models
+            fine-tuned on different rewards, following the Rewarded Soups framework
+            <d-cite key="rame2024rewarded"></d-cite>. This method interpolates the weights <d-math> {\theta}_1 </d-math>
+            and <d-math> {\theta}_2 </d-math> of two LLM policies optimized for distinct rewards <d-math> R_1
+            </d-math> and <d-math> R_2 </d-math>. Starting with an LLM parameterized by <d-math> {\theta}_0
+            </d-math>, we fine-tune it using supervised fine-tuning (SFT) on labeled demonstrations. Following SFT, we
+            apply Reinforcement Learning from Human Feedback (RLHF) <d-cite key="christiano2017deep"></d-cite>,
+            to train two policies using Proximal Policy Optimization (PPO)
+            . The merging of these policies is expressed as:
+        </p>
+
+        <p>
+            $$
+            \boldsymbol{\theta}_{RS} = \boldsymbol{\theta}_{SFT} + \lambda \boldsymbol{\tau}_1 + (1-\lambda)
+            \boldsymbol{\tau}_2, \quad \lambda \in [0,1],
+            $$
+        </p>
+
+        <p>
+            We apply <strong>LiNeS</strong> to the weighted-sum residual <d-math>\lambda \tau_1 + (1-\lambda)
+           \tau_2 </d-math>, fixing <d-math> \alpha = \beta = 1 </d-math> for computational efficiency. In our
+            experiments, we use the LLaMA-2 7B model and the
+            Reddit Summary task <d-cite key="stiennon2020learning"></d-cite>, employing two reward models to evaluate
+            performance. As we see on the right, <strong>LiNeS</strong>
+            consistently outperforms vanilla Rewarded Soups across the full preference space, achieving a dominating
+            Pareto Front and demonstrating its general applicability in enhancing the merging of LLM policies fine-tuned
+            on different rewards.
+        </p>
+
+
+
+        <div class="l-body side" style="position: relative; ">
+            <img src="images/lines/rewarded_soups.png" , style="width: 250%; ">
+        </div>
+
+
+        <h2>Final remarks</h2>
+
+
+        <p>In this work, we introduced <strong>LiNeS</strong>, a novel method aimed at mitigating catastrophic
+            forgetting during fine-tuning. By reducing the magnitude of parameter updates in shallow layers,
+            <strong>LiNeS</strong> enhances generalization on control tasks while preserving performance on fine-tuned
+            tasks. We demonstrated the versatility of <strong>LiNeS</strong> in tackling task interference during
+            multi-task model merging, consistently improving baseline merging methods across both vision and NLP
+            benchmarks. Our experiments validated the broad applicability of <strong>LiNeS</strong>, from enhancing OOD
+            generalization to improving single-task and multi-task model merging, as well as merging LLM policies
+            optimized for different rewards. Given its simplicity and ease of integration, <strong>LiNeS</strong>
+            provides a practical and efficient solution for improving the generalization and robustness of fine-tuned
+            models across diverse applications.
+        </p>
+
+    </d-article>
+
+    <d-appendix>
+        <style>
+            .citation {
+                contain: layout style;
+                font-size: 11px;
+                line-height: 15px;
+                border-left: 1px solid rgba(0, 0, 0, 0.1);
+                padding-left: 18px;
+                border: 1px solid rgba(0, 0, 0, 0.1);
+                background: rgba(0, 0, 0, 0.02);
+                padding: 10px 18px;
+                border-radius: 3px;
+                color: rgba(150, 150, 150, 1);
+                overflow: hidden;
+                margin-top: -12px;
+                /* white-space: pre-line;
+                word-wrap: break-word; */
+            }
+        </style>
+        <h3>Citation</h3>
+        <p>
+        <pre class="citation">
+@article{wang2024lines,
+    author = {
+        Ke Wang,
+        Nikolaos Dimitriadis,
+        Alessandro Favero,
+        Guillermo Ortiz-Jimenez,
+        Fran\c{c}ois Fleuret,
+        Pascal Frossard},
+    journal = {arXiv},
+    title = {{LiNeS: Post-training Layer Scaling Prevents Forgetting and Enhances Model Merging}},
+    year = {2024}
+}
+        </pre>
+        </p>
+        <h3>Acknowledgements</h3>
+        <p>
+            To lighten this article and point the reader only to the most relevant papers, we cited only a subset of the
+            relevant work that we built on. Please refer to the bibliography of the original paper for the complete
+            list.
+        </p>
+        <p>
+            The article template is due to <a href="https://distill.pub/">distill.pub</a> and many formatting styles are
+            inspired from other articles appearing on Distill.
+        </p>
+        <d-bibliography>
+            <script type="text/bibtex">
+                @article{rame2024rewarded,
+                    title={Rewarded soups: towards pareto-optimal alignment by interpolating weights fine-tuned on diverse rewards},
+                    author={Rame, Alexandre and Couairon, Guillaume and Dancette, Corentin and Gaya, Jean-Baptiste and Shukor, Mustafa and Soulier, Laure and Cord, Matthieu},
+                    journal={Advances in Neural Information Processing Systems},
+                    volume={36},
+                    year={2024}
+                  }
+
+                @inproceedings{yadav2023ties,
+                    author = {Prateek Yadav and Derek Tam and Leshem Choshen and Colin Raffel and Mohit Bansal},
+                    booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+                    title = {TIES-Merging: Resolving Interference When Merging Models},
+                    url = {http://arxiv.org/abs/2306.01708v2},
+                    year = {2023}
+                }
+
+                @article{schulman2017proximal,
+                    title={Proximal policy optimization algorithms},
+                    author={Schulman, John and Wolski, Filip and Dhariwal, Prafulla and Radford, Alec and Klimov, Oleg},
+                    journal={arXiv preprint arXiv:1707.06347},
+                    year={2017}
+                }   
+
+                @inproceedings{rame2024rewarded,
+                    title={Rewarded soups: towards pareto-optimal alignment by interpolating weights fine-tuned on diverse rewards},
+                    author={Rame, Alexandre and Couairon, Guillaume and Dancette, Corentin and Gaya, Jean-Baptiste and Shukor, Mustafa and Soulier, Laure and Cord, Matthieu},
+                    journal={Advances in Neural Information Processing Systems},
+                    volume={36},
+                    year={2024}
+                  }
+
+                @inproceedings{wang2024localizing,
+                    title={Localizing Task Information for Improved Model Merging and Compression},
+                    author={Wang, Ke and Dimitriadis, Nikolaos and Ortiz-Jimenez, Guillermo and Fleuret, Francois and Frossard, Pascal},
+                    booktitle = {International Conference on Machine Learning (ICML)},
+                    url = {http://arxiv.org/abs/2405.07813},
+                    year={2024},
+                }
+
+                @inproceedings{christiano2017deep,
+                    title={Deep reinforcement learning from human preferences},
+                    author={Christiano, Paul F and Leike, Jan and Brown, Tom and Martic, Miljan and Legg, Shane and Amodei, Dario},
+                    journal={Advances in neural information processing systems},
+                    volume={30},
+                    year={2017}
+                  }
+
+                @inproceedings{ilharco2023task,
+                    author = {Gabriel Ilharco and
+                   Marco Tulio Ribeiro and
+                   Mitchell Wortsman and
+                   Suchin Gururangan and
+                   Ludwig Schmidt and
+                   Hannaneh Hajishirzi and
+                   Ali Farhadi},
+                    booktitle = {International Conference on Learning Representations (ICLR)},
+                    note = {\url{https://arxiv.org/abs/2110.08207}},
+                    url = {https://arxiv.org/abs/2110.08207},
+                    title = {Editing models with task arithmetic},
+                    year = {2023}
+                   }
+
+                @inproceedings{stiennon2020learning,
+                    title={Learning to summarize with human feedback},
+                    author={Stiennon, Nisan and Ouyang, Long and Wu, Jeffrey and Ziegler, Daniel and Lowe, Ryan and Voss, Chelsea and Radford, Alec and Amodei, Dario and Christiano, Paul F},
+                    journal={Advances in Neural Information Processing Systems},
+                    volume={33},
+                    pages={3008--3021},
+                    year={2020}
+                  }
+
+                @inproceedings{wortsman2021robust,
+                    author = {Wortsman, Mitchell and Ilharco, Gabriel and Li, Mike and Kim, Jong Wook and Hajishirzi, Hannaneh and Farhadi, Ali and Namkoong, Hongseok and Schmidt, Ludwig},
+                    booktitle = {IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+                    title = {Robust fine-tuning of zero-shot models},
+                    url = {http://arxiv.org/abs/2109.01903v3},
+                    year = {2022}
+                   }
+
+  
+
+                @inproceedings{wortsman2022model,
+                    author = {Wortsman, Mitchell and Ilharco, Gabriel and Gadre, Samir Yitzhak and Roelofs, Rebecca and Gontijo-Lopes, Raphael and Morcos, Ari S and Namkoong, Hongseok and Farhadi, Ali and Carmon, Yair and Kornblith, Simon and others},
+                    booktitle = {International Conference on Machine Learning (ICML)},
+                    title = {Model soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time},
+                    url = {http://arxiv.org/abs/2203.05482v3},
+                    year = {2022}
+                     }
+                </script>
+        </d-bibliography>
+    </d-appendix>
+    <!-- <d-article>
+        <div id="disqus_thread"></div>
+    </d-article> -->
+
+
+
+    <!-- <script> -->
+        <!-- /**
+         *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT
+         *  THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR
+         *  PLATFORM OR CMS.
+         *
+         *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT:
+         *  https://disqus.com/admin/universalcode/#configuration-variables
+         */
+        /*
+        var disqus_config = function () {
+            // Replace PAGE_URL with your page's canonical URL variable
+            this.page.url = PAGE_URL;
+    
+            // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+            this.page.identifier = PAGE_IDENTIFIER;
+        };
+        */ -->
+
+        <!-- (function () {  // REQUIRED CONFIGURATION VARIABLE: EDIT THE SHORTNAME BELOW
+            var d = document, s = d.createElement('script');
+
+            s.src = 'https://nads2020.disqus.com/embed.js';
+
+            s.setAttribute('data-timestamp', +new Date());
+            (d.head || d.body).appendChild(s);
+        })();
+    </script> -->
+
+
+    <!-- <noscript>
+        Please enable JavaScript to view the
+        <a href="https://disqus.com/?ref_noscript" rel="nofollow">
+            comments powered by Disqus.
+        </a> -->
+    <!-- </noscript> -->
+    <!-- <distill-footer></distill-footer> -->
+</body>
